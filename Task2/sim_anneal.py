@@ -78,34 +78,35 @@ class SimulatedAnnealing():
 
         # start the SA process
         while self.T > self.min_T and cur_iter<self.iters:
-            candidate = self.cur_sol.copy()
+            new_path = self.cur_sol.copy()
 
-            # generate new path with 2opt policy
+            # generate new path with 2opt policy, the min path should be of length 2, so we keep the two more slots for the end
             if update_policy == '2opt':
-                end = int(random.choice(np.arange(2, len(self.neighbours) - 1)))
-                i = int(random.choice(np.arange(len(self.neighbours) - end)))
-                candidate[i:(i+end)] = reversed(candidate[i:(i+end)])
+                i2 = int(random.choice(np.arange(2, len(self.neighbours) - 1)))
+                i1 = int(random.choice(np.arange(len(self.neighbours) - i2)))
+                i2 = i1+i2
+                new_path[i1:i2] = reversed(new_path[i1:i2])
 
             # generate new path with simply swapping two cities
             elif update_policy == 'simp_swap':
                 i1 = random.choice(list(np.arange(len(self.neighbours))))
                 i2 = random.choice(list(np.arange(len(self.neighbours))))
-                saved = candidate[i1]
-                candidate[i1] = candidate[i2]
-                candidate[i2] = saved
+                saved = new_path[i1]
+                new_path[i1] = new_path[i2]
+                new_path[i2] = saved
             else:
                 raise ValueError("The update policy can be either 2opt or simp_swap")
 
             # get the score for the new path and apply decision SA rule
-            candidate_score = utils.calculate_path(candidate, self.neighbours, self.dist_func)
-            if candidate_score < self.cur_dist:
-                self.cur_dist, self.cur_sol = candidate_score, candidate
-                if candidate_score < self.best_dist:
-                    self.best_dist, self.best_sol = candidate_score, candidate
+            new_dist = utils.calculate_path(new_path, self.neighbours, self.dist_func)
+            if new_dist < self.cur_dist:
+                self.cur_dist, self.cur_sol = new_dist, new_path
+                if new_dist < self.best_dist:
+                    self.best_dist, self.best_sol = new_dist, new_path
             else:
-                alpha = np.exp(-(candidate_score-self.cur_dist)/self.T)
+                alpha = np.exp(-(new_dist-self.cur_dist)/self.T)
                 if np.random.uniform(0, 1) <= alpha:
-                    self.cur_dist, self.cur_sol = candidate_score, candidate
+                    self.cur_dist, self.cur_sol = new_dist, new_path
 
             # print the information
             if verbose and cur_iter%10 == 0:
