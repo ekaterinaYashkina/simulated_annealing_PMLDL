@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import matplotlib.animation as animation
 
 
 """
@@ -33,8 +34,6 @@ def animation(history, points, names):
             ax.annotate(txt, (x_init[i], y_init[i]))
 
 
-        # extra_x = (max(x) - min(x)) * 0.05
-        # extra_y = (max(y) - min(y)) * 0.05
         ax.set_xlim(min(x) - 5, max(x) + 5)
         ax.set_ylim(min(y) - 5, max(y) + 5)
 

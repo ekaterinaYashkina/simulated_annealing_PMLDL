@@ -16,7 +16,7 @@ class SimulatedAnnealing():
     '''
 
     def __init__(self, neighbours, cool_rate = 0.95, T = 1000, min_T = 1e-8, iters = 1000, annealing_shedule = False, ann_iter = None,
-                 dist_func = 'lonlat'):
+                 dist_func = 'lonlat', no_change = 1000):
         self.neighbours = neighbours
         self.cool_rate = cool_rate
         self.T = T
@@ -35,7 +35,8 @@ class SimulatedAnnealing():
             assert ann_iter is not None
         self.annealing_shedule = annealing_shedule
         self.ann_iter = ann_iter
-
+        self.counter = 0
+        self.no_change = no_change
 
 
     '''
@@ -79,6 +80,7 @@ class SimulatedAnnealing():
         # start the SA process
         while self.T > self.min_T and cur_iter<self.iters:
             new_path = self.cur_sol.copy()
+            prev = self.cur_dist
 
             # generate new path with 2opt policy, the min path should be of length 2, so we keep the two more slots for the end
             if update_policy == '2opt':
@@ -108,6 +110,8 @@ class SimulatedAnnealing():
                 if np.random.uniform(0, 1) <= alpha:
                     self.cur_dist, self.cur_sol = new_dist, new_path
 
+
+
             # print the information
             if verbose and cur_iter%10 == 0:
                 print("Iteration {}/{} current distance - {} T - {}".format(cur_iter, self.iters, self.cur_dist, self.T))
@@ -120,4 +124,12 @@ class SimulatedAnnealing():
             cur_iter+=1
 
             self.fit_hist.append((self.cur_sol, self.cur_dist))
+            if prev == self.cur_dist:
+                self.counter+=1
+                if self.counter >= self.no_change:
+                    break
+            else:
+                self.counter = 0
+
+
 
