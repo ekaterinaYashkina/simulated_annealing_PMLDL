@@ -73,6 +73,14 @@ in every generation
         else:
             self.mus_mode = mus
             self.std = std
+            self.mus = {}
+
+
+        if mus == 'fixed':
+            for name, param in self.model.state_dict().items():
+                self.mus[name] = np.random.choice(np.arange(0, 3))
+
+
 
 
     """

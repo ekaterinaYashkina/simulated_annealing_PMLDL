@@ -7,6 +7,7 @@ from nn import Classifier
 from sim_anneal import SimulatedAnnealing
 import torch.nn as nn
 import matplotlib.pyplot as plt
+import time
 
 
 import sys
@@ -23,6 +24,7 @@ parser1.add_argument("--mus", type = str, default='weights', help = "how to gene
                                                                     "'fixed' - generate mus for all weights beforehand")
 parser1.add_argument("--std", type = int, default=2, help = "std for generating new weights from normal distribution")
 parser1.add_argument("--plot", type = bool, default=True, help = "whether to plot the loss and accuracy change")
+parser1.add_argument("--optimizer", type = str, default='sa', help = "sa or sgd optimizer")
 
 arg = parser1.parse_args()
 
@@ -41,7 +43,7 @@ min_T - minimum temperature to stop the algorithm
 epochs - number of iterations to perform to stop the algorithm
 
 """
-def train(X, Y, model, optimizer, criterion, min_T = 1e-8, epochs = 20000):
+def train_sa(X, Y, model, optimizer, criterion, min_T = 1e-8, epochs = 20000):
 
     history = []
     ite = 0
@@ -65,6 +67,31 @@ def train(X, Y, model, optimizer, criterion, min_T = 1e-8, epochs = 20000):
 
     return history, model
 
+
+def train_sgd(X, Y, model, optimizer, criterion, epochs = 20000):
+
+    history = []
+    ite = 0
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        outputs = model(X)
+        loss = criterion(outputs, Y)
+        loss.backward()
+        optimizer.step()
+
+        # Print the information every 5 iterations
+        if ite % 5 == 0:
+            _, predicted = torch.max(outputs.data, 1)
+            accuracy = torch.sum(Y == predicted).item() / len(x_train)
+            print('Epoch [%d/%d]  Loss: %.4f Accuracy: %.4f '
+                  % (ite + 1, epochs, loss.item(), accuracy))
+
+        history.append((loss, accuracy))
+        ite += 1
+
+    return history, model
+
+
 """
 
 Calculate the performance on the test set
@@ -85,6 +112,7 @@ def test(x_test, y_test, model, criterion):
     acc = torch.sum(Y_t.cpu() == predicted_t.cpu()).item() / len(x_test)
 
     print("Test set loss - {}, accuracy - {}".format(loss, acc))
+    return loss, acc
 
 
 
@@ -118,6 +146,7 @@ def plot_change(history):
 
 # iris dataset from sklearn
 
+
 iris = load_iris()
 x_data=iris.data
 y_data=iris.target
@@ -133,10 +162,19 @@ criterion = torch.nn.CrossEntropyLoss()
 
 model = Classifier()
 model = model.to(device)
-optimizer = SimulatedAnnealing(params = model.parameters(), device = device, model = model, features = torch.Tensor(x_train).float(),
+
+
+if arg.optimizer == 'sa':
+    optimizer = SimulatedAnnealing(params = model.parameters(), device = device, model = model, features = torch.Tensor(x_train).float(),
                                labels = torch.Tensor(y_train).long(), loss = nn.CrossEntropyLoss(),
                                T_init = arg.start_T, cool_rate = arg.cool_rate,
                                annealing_schedule = arg.ann_schedule, ann_iter = arg.ann_iters, mus = arg.mus, std = arg.std)
+elif arg.optimizer == 'sgd':
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+else:
+    raise ValueError("Optimizer should be sa or sgd")
+
 
 ite = 0
 min_T = 1e-8
@@ -146,8 +184,19 @@ epochs = arg.iters
 X = Variable(torch.Tensor(x_train).float()).to(device)
 Y = Variable(torch.Tensor(y_train).long()).to(device)
 
-history, model = train(X, Y, model, optimizer, criterion, min_T=min_T, epochs=epochs)
-test(x_test, y_test, model, criterion)
+
+if arg.optimizer == "sa":
+    time1 = time.time()
+    history, model = train_sa(X, Y, model, optimizer, criterion, min_T=min_T, epochs=epochs)
+    test(x_test, y_test, model, criterion)
+    time2 = time.time() - time1
+else:
+    time1 = time.time()
+    history, model = train_sgd(X, Y, model, optimizer, criterion,  epochs=epochs)
+    test(x_test, y_test, model, criterion)
+    time2 = time.time() - time1
+
+print("Time for execution - {}".format(time2))
 
 if arg.plot:
     plot_change(history)
